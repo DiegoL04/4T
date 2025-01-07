@@ -2,9 +2,8 @@ import express from "express";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
-import bcrypt from "bcrypt"
-import db from "./db.js"
-;
+import bcrypt from "bcrypt";
+import db from "./db.js";
 const app = express();
 const JWT_SECRET = "z8dDslFl6DfbrkrQN8r93nqa619E6f3o";
 
@@ -92,6 +91,42 @@ app.post("/login", async (req, res) => {
 
   } catch (error) {
     console.error("Error during login:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.post("/start", async (req, res) => {
+  try{
+    const {oppName, username} = req.body;
+    console.log(username, "challenged ", oppName);
+
+    if (!oppName) {
+      return res.status(400).json({ message: "Username is required" });
+    }
+    // Query users from database that match the username
+    const [rows] = await db.query("SELECT * FROM users WHERE username = ?", [oppName]);
+    // If rows is empty, the user does not exist
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const roomId = uuidv4();
+    
+    await db.query(
+      "INSERT INTO rooms (roomId, p1, p2) VALUES (?, ?, ?)",
+      [roomId, username, oppName]
+    );
+    res.status(200).json({
+      message: "Room created",
+      roomId,
+      username,
+      oppName,});
+
+    console.log(`Room created: ${roomId}, Players: ${[username, oppName]}`);
+
+
+  } catch (error) {
+    console.error("Error during challenge:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
